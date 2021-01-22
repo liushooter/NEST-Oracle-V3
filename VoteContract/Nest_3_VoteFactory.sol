@@ -8,7 +8,7 @@ import "../Lib/SafeMath.sol";
  */
 contract Nest_3_VoteFactory {
     using SafeMath for uint256;
-    
+
     uint256 _limitTime = 7 days;                                    //  Vote duration
     uint256 _NNLimitTime = 1 days;                                  //  NestNode raising time
     uint256 _circulationProportion = 51;                            //  Proportion of votes to pass
@@ -28,14 +28,14 @@ contract Nest_3_VoteFactory {
     address _destructionAddress;                                    //  Destroy contract address
 
     event ContractAddress(address contractAddress);
-    
+
     /**
     * @dev Initialization method
     */
     constructor () public {
         _modifyAuthority[address(msg.sender)] = true;
     }
-    
+
     /**
     * @dev Reset contract
     */
@@ -44,7 +44,7 @@ contract Nest_3_VoteFactory {
         _destructionAddress = address(checkAddress("nest.v3.destruction"));
         _nestToken = ERC20(address(checkAddress("nest")));
     }
-    
+
     /**
     * @dev Create voting contract
     * @param implementContract The executable contract address for voting
@@ -58,7 +58,7 @@ contract Nest_3_VoteFactory {
         _contractData[address(newContract)] = true;
         emit ContractAddress(address(newContract));
     }
-    
+
     /**
     * @dev Use NEST to vote
     * @param contractAddress Vote contract address
@@ -71,7 +71,7 @@ contract Nest_3_VoteFactory {
         newContract.nestVote();
         _myVote[address(tx.origin)] = contractAddress;
     }
-    
+
     /**
     * @dev Vote using NestNode Token
     * @param contractAddress Vote contract address
@@ -84,7 +84,7 @@ contract Nest_3_VoteFactory {
         require(_NNToken.transferFrom(address(tx.origin), address(newContract), NNAmount), "Authorization transfer failed");
         newContract.nestNodeVote(NNAmount);
     }
-    
+
     /**
     * @dev Excecute contract
     * @param contractAddress Vote contract address
@@ -98,8 +98,8 @@ contract Nest_3_VoteFactory {
         newContract.startChange();
         deleteSuperManPrivate(address(newContract));
     }
-    
-    /**
+
+    /** 紧急状态
     * @dev Switch emergency state-transfer in NestNode Token
     * @param amount Amount of NNs to transfer
     */
@@ -107,8 +107,8 @@ contract Nest_3_VoteFactory {
         require(_NNToken.transferFrom(address(tx.origin), address(this), amount));
         _emergencyPerson[address(tx.origin)] = _emergencyPerson[address(tx.origin)].add(amount);
     }
-    
-    /**
+
+    /** 紧急状态
     * @dev Switch emergency state-transfer out NestNode Token
     */
     function turnOutNestNodeForStateOfEmergency() public {
@@ -118,8 +118,8 @@ contract Nest_3_VoteFactory {
         uint256 nestAmount = _nestToken.balanceOf(address(this));
         require(_nestToken.transfer(address(_destructionAddress), nestAmount));
     }
-    
-    /**
+
+    /** 紧急状态
     * @dev Modify emergency state
     */
     function changeStateOfEmergency() public {
@@ -134,7 +134,7 @@ contract Nest_3_VoteFactory {
             _emergencyTime = now;
         }
     }
-    
+
     /**
     * @dev Check whether participating in the voting
     * @param user Address to check
@@ -151,7 +151,7 @@ contract Nest_3_VoteFactory {
             return true;
         }
     }
-    
+
     /**
     * @dev Check my voting
     * @param user Address to check
@@ -160,120 +160,120 @@ contract Nest_3_VoteFactory {
     function checkMyVote(address user) public view returns (address) {
         return _myVote[user];
     }
-    
+
     //  Check the voting time
     function checkLimitTime() public view returns (uint256) {
         return _limitTime;
     }
-    
+
     //  Check the NestNode raising time
     function checkNNLimitTime() public view returns (uint256) {
         return _NNLimitTime;
     }
-    
+
     //  Check the voting proportion to pass
     function checkCirculationProportion() public view returns (uint256) {
         return _circulationProportion;
     }
-    
+
     //  Check the minimum number of NNs to create a voting contract
     function checkNNUsedCreate() public view returns (uint256) {
         return _NNUsedCreate;
     }
-    
+
     //  Check the minimum number of NNs raised to start a vote
     function checkNNCreateLimit() public view returns (uint256) {
         return _NNCreateLimit;
     }
-    
+
     //  Check whether in emergency state
     function checkStateOfEmergency() public view returns (bool) {
         return _stateOfEmergency;
     }
-    
+
     //  Check the start time of the emergency state
     function checkEmergencyTime() public view returns (uint256) {
         return _emergencyTime;
     }
-    
+
     //  Check the duration of the emergency state
     function checkEmergencyTimeLimit() public view returns (uint256) {
         return _emergencyTimeLimit;
     }
-    
+
     //  Check the amount of personal pledged NNs
     function checkEmergencyPerson(address user) public view returns (uint256) {
         return _emergencyPerson[user];
     }
-    
+
     //  Check the number of NNs required for the emergency
     function checkEmergencyNNAmount() public view returns (uint256) {
         return _emergencyNNAmount;
     }
-    
+
     //  Verify voting contract data
     function checkContractData(address contractAddress) public view returns (bool) {
         return _contractData[contractAddress];
     }
-    
+
     //  Modify voting time
     function changeLimitTime(uint256 num) public onlyOwner {
         require(num > 0, "Parameter needs to be greater than 0");
         _limitTime = num;
     }
-    
+
     //  Modify the NestNode raising time
     function changeNNLimitTime(uint256 num) public onlyOwner {
         require(num > 0, "Parameter needs to be greater than 0");
         _NNLimitTime = num;
     }
-    
+
     //  Modify the voting proportion
     function changeCirculationProportion(uint256 num) public onlyOwner {
         require(num > 0, "Parameter needs to be greater than 0");
         _circulationProportion = num;
     }
-    
+
     //  Modify the minimum number of NNs to create a voting contract
     function changeNNUsedCreate(uint256 num) public onlyOwner {
         _NNUsedCreate = num;
     }
-    
+
     //  Modify the minimum number of NNs to raised to start a voting
     function checkNNCreateLimit(uint256 num) public onlyOwner {
         _NNCreateLimit = num;
     }
-    
+
     //  Modify the emergency state duration
     function changeEmergencyTimeLimit(uint256 num) public onlyOwner {
         require(num > 0);
         _emergencyTimeLimit = num.mul(1 days);
     }
-    
+
     //  Modify the number of NNs required for emergency state
     function changeEmergencyNNAmount(uint256 num) public onlyOwner {
         require(num > 0);
         _emergencyNNAmount = num;
     }
-    
+
     //  Check address
     function checkAddress(string memory name) public view returns (address contractAddress) {
         return _contractAddress[name];
     }
-    
+
     //  Add contract mapping address
     function addContractAddress(string memory name, address contractAddress) public onlyOwner {
         _contractAddress[name] = contractAddress;
     }
-    
-    //  Add administrator address 
+
+    //  Add administrator address
     function addSuperMan(address superMan) public onlyOwner {
         _modifyAuthority[superMan] = true;
     }
     function addSuperManPrivate(address superMan) private {
         _modifyAuthority[superMan] = true;
     }
-    
+
     //  Delete administrator address
     function deleteSuperMan(address superMan) public onlyOwner {
         _modifyAuthority[superMan] = false;
@@ -281,17 +281,17 @@ contract Nest_3_VoteFactory {
     function deleteSuperManPrivate(address superMan) private {
         _modifyAuthority[superMan] = false;
     }
-    
+
     //  Delete voting contract data
     function deleteContractData(address contractAddress) public onlyOwner {
         _contractData[contractAddress] = false;
     }
-    
+
     //  Check whether the administrator
     function checkOwners(address man) public view returns (bool) {
         return _modifyAuthority[man];
     }
-    
+
     //  Administrator only
     modifier onlyOwner() {
         require(checkOwners(msg.sender), "No authority");
@@ -304,7 +304,7 @@ contract Nest_3_VoteFactory {
  */
 contract Nest_3_VoteContract {
     using SafeMath for uint256;
-    
+
     Nest_3_Implement _implementContract;                //  Executable contract
     Nest_3_TokenSave _tokenSave;                        //  Lock-up contract
     Nest_3_VoteFactory _voteFactory;                    //  Voting factory contract
@@ -329,7 +329,7 @@ contract Nest_3_VoteContract {
     bool _stateOfEmergency;                             //  Whether the contract is in emergency state
     mapping(address => uint256) _personalAmount;        //  Number of personal votes
     mapping(address => uint256) _personalNNAmount;      //  Number of NN personal votes
-    
+
     /**
     * @dev Initialization method
     * @param contractAddress Executable contract address
@@ -346,7 +346,7 @@ contract Nest_3_VoteContract {
         _destructionAddress = address(voteFactory.checkAddress("nest.v3.destruction"));
         _personalNNAmount[address(tx.origin)] = NNAmount;
         _allNNAmount = NNAmount;
-        _createTime = now;                                    
+        _createTime = now;
         _endTime = _createTime.add(voteFactory.checkLimitTime());
         _NNLimitTime = voteFactory.checkNNLimitTime();
         _NNCreateLimit = voteFactory.checkNNCreateLimit();
@@ -366,7 +366,7 @@ contract Nest_3_VoteContract {
             _nestVote = true;
         }
     }
-    
+
     /**
     * @dev NEST voting
     */
@@ -386,7 +386,7 @@ contract Nest_3_VoteContract {
         _totalAmount = _totalAmount.add(amount);
         ifEffective();
     }
-    
+
     /**
     * @dev NEST voting cancellation
     */
@@ -394,11 +394,11 @@ contract Nest_3_VoteContract {
         require(address(msg.sender) == address(tx.origin), "It can't be a contract");
         require(now <= _endTime, "Voting time exceeded");
         require(!_effective, "Vote in force");
-        require(_personalAmount[address(tx.origin)] > 0, "No vote");                     
+        require(_personalAmount[address(tx.origin)] > 0, "No vote");
         _totalAmount = _totalAmount.sub(_personalAmount[address(tx.origin)]);
         _personalAmount[address(tx.origin)] = 0;
     }
-    
+
     /**
     * @dev  NestNode voting
     * @param NNAmount Amount of NNs
@@ -412,7 +412,7 @@ contract Nest_3_VoteContract {
             _nestVote = true;
         }
     }
-    
+
     /**
     * @dev Withdrawing lock-up NNs
     */
@@ -431,12 +431,12 @@ contract Nest_3_VoteContract {
         //  Reverting back the NNs
         require(_NNToken.transfer(address(tx.origin), _personalNNAmount[address(tx.origin)]));
         _personalNNAmount[address(tx.origin)] = 0;
-        //  Destroying NEST Tokens 
+        //  Destroying NEST Tokens
         uint256 nestAmount = _nestToken.balanceOf(address(this));
         _destroyedNest = _destroyedNest.add(nestAmount);
         require(_nestToken.transfer(address(_destructionAddress), nestAmount));
     }
-    
+
     /**
     * @dev Execute the contract
     */
@@ -455,7 +455,7 @@ contract Nest_3_VoteContract {
         //  Delete the authorization
         _voteFactory.deleteSuperMan(address(_implementContract));
     }
-    
+
     /**
     * @dev check whether the vote is effective
     */
@@ -464,97 +464,97 @@ contract Nest_3_VoteContract {
             _effective = true;
         }
     }
-    
+
     /**
     * @dev Check whether the vote is over
     */
     function checkContractEffective() public view returns (bool) {
         if (_effective || now > _endTime) {
             return true;
-        } 
+        }
         return false;
     }
-    
+
     //  Check the executable implement contract address
     function checkImplementAddress() public view returns (address) {
         return _implementAddress;
     }
-    
+
     //  Check the voting start time
     function checkCreateTime() public view returns (uint256) {
         return _createTime;
     }
-    
+
     //  Check the voting end time
     function checkEndTime() public view returns (uint256) {
         return _endTime;
     }
-    
+
     //  Check the current total number of votes
     function checkTotalAmount() public view returns (uint256) {
         return _totalAmount;
     }
-    
+
     //  Check the number of votes to pass
     function checkCirculation() public view returns (uint256) {
         return _circulation;
     }
-    
+
     //  Check the number of personal votes
     function checkPersonalAmount(address user) public view returns (uint256) {
         return _personalAmount[user];
     }
-    
+
     //  Check the destroyed NEST
     function checkDestroyedNest() public view returns (uint256) {
         return _destroyedNest;
     }
-    
+
     //  Check whether the contract is effective
     function checkEffective() public view returns (bool) {
         return _effective;
     }
-    
+
     //  Check whether in emergency state
     function checkStateOfEmergency() public view returns (bool) {
         return _stateOfEmergency;
     }
-    
+
     //  Check NestNode raising time
     function checkNNLimitTime() public view returns (uint256) {
         return _NNLimitTime;
     }
-    
+
     //  Check the minimum number of NNs to create a vote
     function checkNNCreateLimit() public view returns (uint256) {
         return _NNCreateLimit;
     }
-    
+
     //  Check the period number of snapshot used in the emergency state
     function checkAbonusTimes() public view returns (uint256) {
         return _abonusTimes;
     }
-    
+
     //  Check number of personal votes
     function checkPersonalNNAmount(address user) public view returns (uint256) {
         return _personalNNAmount[address(user)];
     }
-    
+
     //  Check the total number of NNs
     function checkAllNNAmount() public view returns (uint256) {
         return _allNNAmount;
     }
-    
+
     //  Check whether NEST voting is available
     function checkNestVote() public view returns (bool) {
         return _nestVote;
     }
-    
+
     //  Check whether it has been excecuted
     function checkIsChange() public view returns (bool) {
         return _isChange;
     }
-    
+
     //  Vote Factory contract only
     modifier onlyFactory() {
         require(address(_voteFactory) == address(msg.sender), "No authority");

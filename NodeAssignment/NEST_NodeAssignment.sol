@@ -6,7 +6,7 @@ import "./SafeMath.sol";
  * @title Node assignment contract
  */
 contract NEST_NodeAssignment {
-    
+
     using SafeMath for uint256;
     IBMapping mappingContract;                              //  Mapping contract
     IBNEST nestContract;                                    //  NEST contract
@@ -19,25 +19,25 @@ contract NEST_NodeAssignment {
     * @param map Voting contract address
     */
     constructor (address map) public {
-        mappingContract = IBMapping(map); 
+        mappingContract = IBMapping(map);
         nestContract = IBNEST(address(mappingContract.checkAddress("nest")));
         supermanContract = SuperMan(address(mappingContract.checkAddress("nestNode")));
         nodeSave = NEST_NodeSave(address(mappingContract.checkAddress("nestNodeSave")));
         nodeAssignmentData = NEST_NodeAssignmentData(address(mappingContract.checkAddress("nodeAssignmentData")));
     }
-    
+
     /**
     * @dev Reset voting contract
     * @param map Voting contract address
     */
     function changeMapping(address map) public onlyOwner{
-        mappingContract = IBMapping(map); 
+        mappingContract = IBMapping(map);
         nestContract = IBNEST(address(mappingContract.checkAddress("nest")));
         supermanContract = SuperMan(address(mappingContract.checkAddress("nestNode")));
         nodeSave = NEST_NodeSave(address(mappingContract.checkAddress("nestNodeSave")));
         nodeAssignmentData = NEST_NodeAssignmentData(address(mappingContract.checkAddress("nodeAssignmentData")));
     }
-    
+
     /**
     * @dev Deposit NEST token
     * @param amount Amount of deposited NEST
@@ -47,7 +47,7 @@ contract NEST_NodeAssignment {
         require(nestContract.transferFrom(address(msg.sender), address(nodeSave), amount));
         nodeAssignmentData.addNest(amount);
     }
-    
+
     // NestNode receive and settlement
     function nodeGet() public {
         require(address(msg.sender) == address(tx.origin));
@@ -59,7 +59,7 @@ contract NEST_NodeAssignment {
         nodeSave.turnOut(getAmount,address(msg.sender));
         nodeAssignmentData.addNodeLatestAmount(address(msg.sender),allAmount);
     }
-    
+
     // NestNode transfer settlement
     function nodeCount(address fromAdd, address toAdd) public {
         require(address(supermanContract) == address(msg.sender));
@@ -78,15 +78,15 @@ contract NEST_NodeAssignment {
             nodeAssignmentData.addNodeLatestAmount(address(toAdd),allAmount);
         }
     }
-    
+
     // NestNode receivable amount
     function checkNodeNum() public view returns (uint256) {
          uint256 allAmount = nodeAssignmentData.checkNodeAllAmount();
          uint256 amount = allAmount.sub(nodeAssignmentData.checkNodeLatestAmount(address(msg.sender)));
          uint256 getAmount = amount.mul(supermanContract.balanceOf(address(msg.sender))).div(1500);
-         return getAmount; 
+         return getAmount;
     }
-    
+
     // Administrator only
     modifier onlyOwner(){
         require(mappingContract.checkOwners(msg.sender));

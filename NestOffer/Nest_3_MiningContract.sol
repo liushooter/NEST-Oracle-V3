@@ -8,11 +8,11 @@ import "../Lib/AddressPayable.sol";
  * @dev Mining pool + mining logic
  */
 contract Nest_3_MiningContract {
-    
+
     using address_make_payable for address;
     using SafeMath for uint256;
-    
-    uint256 _blockAttenuation = 2400000;                 //  Block decay time interval
+
+    uint256 _blockAttenuation = 2400000;  // 衰减时间间隔  //  Block decay time interval
     uint256[10] _attenuationAmount;                      //  Mining decay amount
     uint256 _afterMiningAmount = 40 ether;               //  Stable period mining amount
     uint256 _firstBlockNum;                              //  Starting mining block
@@ -20,38 +20,39 @@ contract Nest_3_MiningContract {
     Nest_3_VoteFactory _voteFactory;                     //  Voting contract
     ERC20 _nestContract;                                 //  NEST contract address
     address _offerFactoryAddress;                        //  Offering contract address
-    
+
     // Current block, current block mining amount
     event OreDrawingLog(uint256 nowBlock, uint256 blockAmount);
-    
+
     /**
     * @dev Initialization method
     * @param voteFactory  voting contract address
     */
     constructor(address voteFactory) public {
-        _voteFactory = Nest_3_VoteFactory(address(voteFactory));                  
+        _voteFactory = Nest_3_VoteFactory(address(voteFactory));
         _offerFactoryAddress = address(_voteFactory.checkAddress("nest.v3.offerMain"));
         _nestContract = ERC20(address(_voteFactory.checkAddress("nest")));
         // Initiate mining parameters
         _firstBlockNum = 6236588;
         _latestMining = block.number;
         uint256 blockAmount = 400 ether;
+
         for (uint256 i = 0; i < 10; i ++) {
             _attenuationAmount[i] = blockAmount;
-            blockAmount = blockAmount.mul(8).div(10);
+            blockAmount = blockAmount.mul(8).div(10); // 80%
         }
     }
-    
+
     /**
     * @dev Reset voting contract
     * @param voteFactory Voting contract address
     */
     function changeMapping(address voteFactory) public onlyOwner {
-        _voteFactory = Nest_3_VoteFactory(address(voteFactory));                  
+        _voteFactory = Nest_3_VoteFactory(address(voteFactory));
         _offerFactoryAddress = address(_voteFactory.checkAddress("nest.v3.offerMain"));
         _nestContract = ERC20(address(_voteFactory.checkAddress("nest")));
     }
-    
+
     /**
     * @dev Offering mining
     * @return Current block mining amount
@@ -70,7 +71,7 @@ contract Nest_3_MiningContract {
         }
         return miningAmount;
     }
-    
+
     /**
     * @dev Update mining amount list
     */
@@ -80,6 +81,7 @@ contract Nest_3_MiningContract {
         uint256 attenuationPointNow = block.number.sub(createBlock).div(_blockAttenuation);
         uint256 miningAmount = 0;
         uint256 attenuation;
+
         if (attenuationPointNow > 9) {
             attenuation = _afterMiningAmount;
         } else {
@@ -89,12 +91,12 @@ contract Nest_3_MiningContract {
         _latestMining = block.number;
         return miningAmount;
     }
-    
+
     /**
     * @dev Transfer all NEST
     * @param target Transfer target address
     */
-    function takeOutNest(address target) public onlyOwner {
+    function takeOutNest(address target) public onlyOwner { // 卖出
         _nestContract.transfer(address(target),_nestContract.balanceOf(address(this)));
     }
 
@@ -102,28 +104,28 @@ contract Nest_3_MiningContract {
     function checkBlockAttenuation() public view returns(uint256) {
         return _blockAttenuation;
     }
-    
+
     // Check latest offering block
     function checkLatestMining() public view returns(uint256) {
         return _latestMining;
     }
-    
+
     // Check mining amount decay
     function checkAttenuationAmount(uint256 num) public view returns(uint256) {
         return _attenuationAmount[num];
     }
-    
+
     // Check NEST balance
     function checkNestBalance() public view returns(uint256) {
         return _nestContract.balanceOf(address(this));
     }
-    
+
     // Modify block decay time interval
     function changeBlockAttenuation(uint256 blockNum) public onlyOwner {
         require(blockNum > 0);
         _blockAttenuation = blockNum;
     }
-    
+
     // Modify mining amount decay
     function changeAttenuationAmount(uint256 firstAmount, uint256 top, uint256 bottom) public onlyOwner {
         uint256 blockAmount = firstAmount;
@@ -132,7 +134,7 @@ contract Nest_3_MiningContract {
             blockAmount = blockAmount.mul(top).div(bottom);
         }
     }
-    
+
     // Administrator only
     modifier onlyOwner(){
         require(_voteFactory.checkOwners(msg.sender), "No authority");

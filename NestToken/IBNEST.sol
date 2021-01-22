@@ -7,8 +7,11 @@ library IterableMapping {
     KeyFlag[] keys;
     uint size;
   }
+
   struct IndexValue { uint keyIndex; uint value; }
+
   struct KeyFlag { address key; bool deleted; }
+
   function insert(itmap storage self, address key, uint value) public returns (bool replaced)
   {
     uint keyIndex = self.data[key].keyIndex;
@@ -24,6 +27,7 @@ library IterableMapping {
       return false;
     }
   }
+
   function remove(itmap storage self, address key) public returns (bool success)
   {
     uint keyIndex = self.data[key].keyIndex;
@@ -33,18 +37,22 @@ library IterableMapping {
     self.keys[keyIndex - 1].deleted = true;
     self.size --;
   }
+
   function contains(itmap storage self, address key) public view returns (bool)
   {
     return self.data[key].keyIndex > 0;
   }
+
   function iterate_start(itmap storage self) public view returns (uint keyIndex)
   {
     return iterate_next(self, uint(-1));
   }
+
   function iterate_valid(itmap storage self, uint keyIndex) public view returns (bool)
   {
     return keyIndex < self.keys.length;
   }
+
   function iterate_next(itmap storage self, uint keyIndex) public view returns (uint r_keyIndex)
   {
     keyIndex++;
@@ -52,11 +60,13 @@ library IterableMapping {
       keyIndex++;
     return keyIndex;
   }
+
   function iterate_get(itmap storage self, uint keyIndex) public view returns (address key, uint value)
   {
     key = self.keys[keyIndex].key;
     value = self.data[key].value;
   }
+
   function iterate_getValue(itmap storage self, address key) public view returns (uint value) {
       return self.data[key].value;
   }
@@ -148,10 +158,10 @@ contract BasicToken is ERC20Basic {
   * @param _value The amount to be transferred.
   */
   function transfer(address _to, uint256 _value) public returns (bool) {
-      
+
     require(_value <= IterableMapping.iterate_getValue(balances, msg.sender));
     require(_to != address(0));
-    
+
     IterableMapping.insert(balances, msg.sender, IterableMapping.iterate_getValue(balances, msg.sender).sub(_value));
     IterableMapping.insert(balances, _to, IterableMapping.iterate_getValue(balances, _to).add(_value));
     emit Transfer(msg.sender, _to, _value);
@@ -216,7 +226,7 @@ contract StandardToken is ERC20, BasicToken {
     public
     returns (bool)
   {
-      
+
     require(_value <= IterableMapping.iterate_getValue(balances, _from));
     // require(_value <= balances[_from]);
     require(_value <= allowed[_from][msg.sender]);
@@ -313,35 +323,35 @@ contract StandardToken is ERC20, BasicToken {
 
 }
 
-contract IBNEST is StandardToken {
-    
+contract IBNEST is StandardToken { // token
+
     string public name = "NEST";
     string public symbol = "NEST";
     uint8 public decimals = 18;
-    uint256 public INITIAL_SUPPLY = 10000000000 ether;
+    uint256 public INITIAL_SUPPLY = 10000000000 ether; // 初始量 100 亿
 
     constructor () public {
     	totalSupply_ = INITIAL_SUPPLY;
     	IterableMapping.insert(balances, tx.origin, INITIAL_SUPPLY);
     }
-    
+
     function balancesStart() public view returns(uint256) {
         return IterableMapping.iterate_start(balances);
     }
-    
+
     function balancesGetBool(uint256 num) public view returns(bool){
         return IterableMapping.iterate_valid(balances, num);
     }
-    
+
     function balancesGetNext(uint256 num) public view returns(uint256) {
         return IterableMapping.iterate_next(balances, num);
     }
-    
+
     function balancesGetValue(uint256 num) public view returns(address, uint256) {
-        address key;                            
-        uint256 value;                          
+        address key;
+        uint256 value;
         (key, value) = IterableMapping.iterate_get(balances, num);
         return (key, value);
     }
-    
+
 }

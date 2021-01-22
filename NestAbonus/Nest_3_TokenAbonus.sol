@@ -4,20 +4,20 @@ import "../Lib/SafeMath.sol";
 import "../Lib/AddressPayable.sol";
 
 /**
- * @title Dividend logic
- * @dev Some operations about dividend,logic and asset separation
+ * @title Dividend logic 股利逻辑
+ * @dev Some operations about dividend,logic and asset separation 一些关于股息、逻辑和资产分离的操作。
  */
 contract Nest_3_TokenAbonus {
     using address_make_payable for address;
     using SafeMath for uint256;
-    
+
     ERC20 _nestContract;
     Nest_3_TokenSave _tokenSave;                                                                //  Lock-up contract
     Nest_3_Abonus _abonusContract;                                                              //  ETH bonus pool
     Nest_3_VoteFactory _voteFactory;                                                            //  Voting contract
     Nest_3_Leveling _nestLeveling;                                                              //  Leveling contract
     address _destructionAddress;                                                                //  Destroy contract address
-    
+
     uint256 _timeLimit = 168 hours;                                                             //  Bonus period
     uint256 _nextTime = 1596168000;                                                             //  Next bonus time
     uint256 _getAbonusTimeLimit = 60 hours;                                                     //  During of triggering calculation of bonus
@@ -27,28 +27,28 @@ contract Nest_3_TokenAbonus {
     uint256 _expectedSpanForNToken = 1000000 ether;                                             //  NToken expected bonus increment threshold
     uint256 _expectedMinimum = 100 ether;                                                       //  Expected minimum bonus
     uint256 _savingLevelOne = 10;                                                               //  Saving threshold level 1
-    uint256 _savingLevelTwo = 20;                                                               //  Saving threshold level 2 
-    uint256 _savingLevelTwoSub = 100 ether;                                                     //  Function parameters of savings threshold level 2  
+    uint256 _savingLevelTwo = 20;                                                               //  Saving threshold level 2
+    uint256 _savingLevelTwoSub = 100 ether;                                                     //  Function parameters of savings threshold level 2
     uint256 _savingLevelThree = 30;                                                             //  Function parameters of savings threshold level 3
     uint256 _savingLevelThreeSub = 600 ether;                                                   //  Function parameters of savings threshold level 3
-    
-    mapping(address => uint256) _abonusMapping;                                                 //  Bonus pool snapshot - token address (NEST or NToken) => number of ETH in the bonus pool 
-    mapping(address => uint256) _tokenAllValueMapping;                                          //  Number of tokens (circulation) - token address (NEST or NToken) ) => total circulation 
-    mapping(address => mapping(uint256 => uint256)) _tokenAllValueHistory;                      //  NEST or NToken circulation snapshot - token address (NEST or NToken) => number of periods => total circulation 
+
+    mapping(address => uint256) _abonusMapping;                                                 //  Bonus pool snapshot - token address (NEST or NToken) => number of ETH in the bonus pool
+    mapping(address => uint256) _tokenAllValueMapping;                                          //  Number of tokens (circulation) - token address (NEST or NToken) ) => total circulation
+    mapping(address => mapping(uint256 => uint256)) _tokenAllValueHistory;                      //  NEST or NToken circulation snapshot - token address (NEST or NToken) => number of periods => total circulation
     mapping(address => mapping(uint256 => mapping(address => uint256))) _tokenSelfHistory;      //  Personal lockup - NEST or NToken snapshot token address (NEST or NToken) => period => user address => total circulation
     mapping(address => mapping(uint256 => bool)) _snapshot;                                     //  Whether snapshot - token address (NEST or NToken) => number of periods => whether to take a snapshot
     mapping(uint256 => mapping(address => mapping(address => bool))) _getMapping;               //  Receiving records - period => token address (NEST or NToken) => user address => whether received
-    
+
     //  Log token address, amount
     event GetTokenLog(address tokenAddress, uint256 tokenAmount);
-    
+
    /**
     * @dev Initialization method
     * @param voteFactory Voting contract address
     */
     constructor (address voteFactory) public {
         Nest_3_VoteFactory voteFactoryMap = Nest_3_VoteFactory(address(voteFactory));
-        _voteFactory = voteFactoryMap; 
+        _voteFactory = voteFactoryMap;
         _nestContract = ERC20(address(voteFactoryMap.checkAddress("nest")));
         _tokenSave = Nest_3_TokenSave(address(voteFactoryMap.checkAddress("nest.v3.tokenSave")));
         address payable addr = address(voteFactoryMap.checkAddress("nest.v3.abonus")).make_payable();
@@ -57,14 +57,14 @@ contract Nest_3_TokenAbonus {
         _nestLeveling = Nest_3_Leveling(levelingAddr);
         _destructionAddress = address(voteFactoryMap.checkAddress("nest.v3.destruction"));
     }
-    
+
     /**
     * @dev Modify voting contract
     * @param voteFactory Voting contract address
     */
     function changeMapping(address voteFactory) public onlyOwner {
         Nest_3_VoteFactory voteFactoryMap = Nest_3_VoteFactory(address(voteFactory));
-        _voteFactory = voteFactoryMap; 
+        _voteFactory = voteFactoryMap;
         _nestContract = ERC20(address(voteFactoryMap.checkAddress("nest")));
         _tokenSave = Nest_3_TokenSave(address(voteFactoryMap.checkAddress("nest.v3.tokenSave")));
         address payable addr = address(voteFactoryMap.checkAddress("nest.v3.abonus")).make_payable();
@@ -73,9 +73,9 @@ contract Nest_3_TokenAbonus {
         _nestLeveling = Nest_3_Leveling(levelingAddr);
         _destructionAddress = address(voteFactoryMap.checkAddress("nest.v3.destruction"));
     }
-    
+
     /**
-    * @dev Deposit 
+    * @dev Deposit
     * @param amount Deposited amount
     * @param token Locked token address
     */
@@ -90,28 +90,28 @@ contract Nest_3_TokenAbonus {
             //  Bonus not triggered
             uint256 times = (nowTime.sub(_nextTime)).div(_timeLimit);
             //  Calculate the time when bonus should be started
-            uint256 startTime = _nextTime.add((times).mul(_timeLimit));  
+            uint256 startTime = _nextTime.add((times).mul(_timeLimit));
             //  Calculate the time when bonus should be stopped
-            uint256 endTime = startTime.add(_getAbonusTimeLimit);                                                                    
+            uint256 endTime = startTime.add(_getAbonusTimeLimit);
             require(!(nowTime >= startTime && nowTime <= endTime));
         }
-        _tokenSave.depositIn(amount, token, address(msg.sender));                 
+        _tokenSave.depositIn(amount, token, address(msg.sender));
     }
-    
+
     /**
     * @dev Withdrawing
     * @param amount Withdrawing amount
     * @param token Token address
     */
     function takeOut(uint256 amount, address token) public {
-        require(amount > 0, "Parameter needs to be greater than 0");                                                                
+        require(amount > 0, "Parameter needs to be greater than 0");
         require(amount <= _tokenSave.checkAmount(address(msg.sender), token), "Insufficient storage balance");
         if (token == address(_nestContract)) {
             require(!_voteFactory.checkVoteNow(address(tx.origin)), "Voting");
         }
-        _tokenSave.takeOut(amount, token, address(msg.sender));                                                             
-    }                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
-    
+        _tokenSave.takeOut(amount, token, address(msg.sender));
+    }
+
     /**
     * @dev Receiving
     * @param token Receiving token address
@@ -120,50 +120,50 @@ contract Nest_3_TokenAbonus {
         uint256 tokenAmount = _tokenSave.checkAmount(address(msg.sender), token);
         require(tokenAmount > 0, "Insufficient storage balance");
         reloadTime();
-        reloadToken(token);                                                                                                      
+        reloadToken(token);
         uint256 nowTime = now;
         require(nowTime >= _nextTime.sub(_timeLimit) && nowTime <= _nextTime.sub(_timeLimit).add(_getAbonusTimeLimit), "Not time to draw");
-        require(!_getMapping[_times.sub(1)][token][address(msg.sender)], "Have received");                                     
-        _tokenSelfHistory[token][_times.sub(1)][address(msg.sender)] = tokenAmount;                                         
+        require(!_getMapping[_times.sub(1)][token][address(msg.sender)], "Have received");
+        _tokenSelfHistory[token][_times.sub(1)][address(msg.sender)] = tokenAmount;
         require(_tokenAllValueMapping[token] > 0, "Total flux error");
         uint256 selfNum = tokenAmount.mul(_abonusMapping[token]).div(_tokenAllValueMapping[token]);
         require(selfNum > 0, "No limit available");
         _getMapping[_times.sub(1)][token][address(msg.sender)] = true;
-        _abonusContract.getETH(selfNum, token,address(msg.sender)); 
+        _abonusContract.getETH(selfNum, token,address(msg.sender));
         emit GetTokenLog(token, selfNum);
     }
-    
+
     /**
     * @dev Update bonus time and stage ledger
     */
     function reloadTime() private {
         uint256 nowTime = now;
         //  The current time must exceed the bonus time
-        if (nowTime >= _nextTime) {                                                                                                 
+        if (nowTime >= _nextTime) {
             uint256 time = (nowTime.sub(_nextTime)).div(_timeLimit);
-            uint256 startTime = _nextTime.add((time).mul(_timeLimit));                                                              
-            uint256 endTime = startTime.add(_getAbonusTimeLimit);                                                                   
+            uint256 startTime = _nextTime.add((time).mul(_timeLimit));
+            uint256 endTime = startTime.add(_getAbonusTimeLimit);
             if (nowTime >= startTime && nowTime <= endTime) {
-                _nextTime = getNextTime();                                                                                      
-                _times = _times.add(1);                                                                                       
+                _nextTime = getNextTime();
+                _times = _times.add(1);
             }
         }
     }
-    
+
     /**
     * @dev Snapshot of the amount of tokens
     * @param token Receiving token address
     */
     function reloadToken(address token) private {
         if (!_snapshot[token][_times.sub(1)]) {
-            levelingResult(token);                                                                                          
-            _abonusMapping[token] = _abonusContract.getETHNum(token); 
+            levelingResult(token);
+            _abonusMapping[token] = _abonusContract.getETHNum(token);
             _tokenAllValueMapping[token] = allValue(token);
             _tokenAllValueHistory[token][_times.sub(1)] = allValue(token);
             _snapshot[token][_times.sub(1)] = true;
         }
     }
-    
+
     /**
     * @dev Leveling settlement
     * @param token Receiving token address
@@ -201,24 +201,24 @@ contract Nest_3_TokenAbonus {
             _abonusContract.switchToEth.value(ethValue)(token);
         }
     }
-    
-     // Next bonus time, current bonus deadline, ETH number, NEST number, NEST participating in bonus, bonus to receive, approved amount, balance, whether bonus can be paid 
+
+     // Next bonus time, current bonus deadline, ETH number, NEST number, NEST participating in bonus, bonus to receive, approved amount, balance, whether bonus can be paid
     function getInfo(address token) public view returns (uint256 nextTime, uint256 getAbonusTime, uint256 ethNum, uint256 tokenValue, uint256 myJoinToken, uint256 getEth, uint256 allowNum, uint256 leftNum, bool allowAbonus)  {
         uint256 nowTime = now;
         if (nowTime >= _nextTime.sub(_timeLimit) && nowTime <= _nextTime.sub(_timeLimit).add(_getAbonusTimeLimit) && _times > 0 && _snapshot[token][_times.sub(1)]) {
-            //  Bonus have been triggered, and during the time of this bonus, display snapshot data 
+            //  Bonus have been triggered, and during the time of this bonus, display snapshot data
             allowAbonus = _getMapping[_times.sub(1)][token][address(msg.sender)];
             ethNum = _abonusMapping[token];
             tokenValue = _tokenAllValueMapping[token];
         } else {
-            //  Display real-time data 
+            //  Display real-time data
             ethNum = _abonusContract.getETHNum(token);
             tokenValue = allValue(token);
             allowAbonus = _getMapping[_times][token][address(msg.sender)];
         }
         myJoinToken = _tokenSave.checkAmount(address(msg.sender), token);
         if (allowAbonus == true) {
-            getEth = 0; 
+            getEth = 0;
         } else {
             getEth = myJoinToken.mul(ethNum).div(tokenValue);
         }
@@ -227,23 +227,23 @@ contract Nest_3_TokenAbonus {
         allowNum = ERC20(token).allowance(address(msg.sender), address(_tokenSave));
         leftNum = ERC20(token).balanceOf(address(msg.sender));
     }
-    
+
     /**
-    * @dev View next bonus time 
-    * @return Next bonus time 
+    * @dev View next bonus time
+    * @return Next bonus time
     */
     function getNextTime() public view returns (uint256) {
         uint256 nowTime = now;
-        if (_nextTime > nowTime) { 
-            return _nextTime; 
+        if (_nextTime > nowTime) {
+            return _nextTime;
         } else {
             uint256 time = (nowTime.sub(_nextTime)).div(_timeLimit);
             return _nextTime.add(_timeLimit.mul(time.add(1)));
         }
     }
-    
+
     /**
-    * @dev View total circulation 
+    * @dev View total circulation
     * @return Total circulation
     */
     function allValue(address token) public view returns (uint256) {
@@ -255,7 +255,7 @@ contract Nest_3_TokenAbonus {
             return ERC20(token).totalSupply();
         }
     }
-    
+
     /**
     * @dev View bonus period
     * @return Bonus period
@@ -263,7 +263,7 @@ contract Nest_3_TokenAbonus {
     function checkTimeLimit() public view returns (uint256) {
         return _timeLimit;
     }
-    
+
     /**
     * @dev View duration of triggering calculation of bonus
     * @return Bonus period
@@ -271,7 +271,7 @@ contract Nest_3_TokenAbonus {
     function checkGetAbonusTimeLimit() public view returns (uint256) {
         return _getAbonusTimeLimit;
     }
-    
+
     /**
     * @dev View current lowest expected bonus
     * @return Current lowest expected bonus
@@ -289,7 +289,7 @@ contract Nest_3_TokenAbonus {
         }
         return minimumAbonus;
     }
-    
+
     /**
     * @dev Check whether the bonus token is snapshoted
     * @param token Token address
@@ -298,7 +298,7 @@ contract Nest_3_TokenAbonus {
     function checkSnapshot(address token) public view returns (bool) {
         return _snapshot[token][_times.sub(1)];
     }
-    
+
     /**
     * @dev Check the expected bonus incremental ratio
     * @return Expected bonus increment ratio
@@ -306,7 +306,7 @@ contract Nest_3_TokenAbonus {
     function checkeExpectedIncrement() public view returns (uint256) {
         return _expectedIncrement;
     }
-    
+
     /**
     * @dev View expected minimum bonus
     * @return Expected minimum bonus
@@ -314,7 +314,7 @@ contract Nest_3_TokenAbonus {
     function checkExpectedMinimum() public view returns (uint256) {
         return _expectedMinimum;
     }
-    
+
     /**
     * @dev View savings threshold
     * @return Save threshold
@@ -328,7 +328,7 @@ contract Nest_3_TokenAbonus {
     function checkSavingLevelThree() public view returns (uint256) {
         return _savingLevelThree;
     }
-    
+
     /**
     * @dev View NEST liquidity snapshot
     * @param token Locked token address
@@ -337,7 +337,7 @@ contract Nest_3_TokenAbonus {
     function checkTokenAllValueHistory(address token, uint256 times) public view returns (uint256) {
         return _tokenAllValueHistory[token][times];
     }
-    
+
     /**
     * @dev View personal lock-up NEST snapshot
     * @param times Bonus snapshot period
@@ -347,32 +347,32 @@ contract Nest_3_TokenAbonus {
     function checkTokenSelfHistory(address token, uint256 times, address user) public view returns (uint256) {
         return _tokenSelfHistory[token][times][user];
     }
-    
+
     // View the period number of bonus
     function checkTimes() public view returns (uint256) {
         return _times;
     }
-    
+
     // NEST expected bonus increment threshold
     function checkExpectedSpanForNest() public view returns (uint256) {
         return _expectedSpanForNest;
     }
-    
+
     // NToken expected bonus increment threshold
     function checkExpectedSpanForNToken() public view returns (uint256) {
         return _expectedSpanForNToken;
     }
-    
+
     // View the function parameters of savings threshold level 3
     function checkSavingLevelTwoSub() public view returns (uint256) {
         return _savingLevelTwoSub;
     }
-    
+
     // View the function parameters of savings threshold level 3
     function checkSavingLevelThreeSub() public view returns (uint256) {
         return _savingLevelThreeSub;
     }
-    
+
     /**
     * @dev Update bonus period
     * @param hour Bonus period (hours)
@@ -381,7 +381,7 @@ contract Nest_3_TokenAbonus {
         require(hour > 0, "Parameter needs to be greater than 0");
         _timeLimit = hour.mul(1 hours);
     }
-    
+
     /**
     * @dev Update collection period
     * @param hour Collection period (hours)
@@ -390,7 +390,7 @@ contract Nest_3_TokenAbonus {
         require(hour > 0, "Parameter needs to be greater than 0");
         _getAbonusTimeLimit = hour;
     }
-    
+
     /**
     * @dev Update expected bonus increment ratio
     * @param num Expected bonus increment ratio
@@ -399,7 +399,7 @@ contract Nest_3_TokenAbonus {
         require(num > 0, "Parameter needs to be greater than 0");
         _expectedIncrement = num;
     }
-    
+
     /**
     * @dev Update expected minimum bonus
     * @param num Expected minimum bonus
@@ -408,7 +408,7 @@ contract Nest_3_TokenAbonus {
         require(num > 0, "Parameter needs to be greater than 0");
         _expectedMinimum = num;
     }
-    
+
     /**
     * @dev  Update saving threshold
     * @param threshold Saving threshold
@@ -422,21 +422,21 @@ contract Nest_3_TokenAbonus {
     function changeSavingLevelThree(uint256 threshold) public onlyOwner {
         _savingLevelThree = threshold;
     }
-    
+
     /**
     * @dev Update the function parameters of savings threshold level 2
     */
     function changeSavingLevelTwoSub(uint256 num) public onlyOwner {
         _savingLevelTwoSub = num;
     }
-    
+
     /**
     * @dev Update the function parameters of savings threshold level 3
     */
     function changeSavingLevelThreeSub(uint256 num) public onlyOwner {
         _savingLevelThreeSub = num;
     }
-    
+
     /**
     * @dev Update NEST expected bonus incremental threshold
     * @param num Threshold
@@ -444,7 +444,7 @@ contract Nest_3_TokenAbonus {
     function changeExpectedSpanForNest(uint256 num) public onlyOwner {
         _expectedSpanForNest = num;
     }
-    
+
     /**
     * @dev Update NToken expected bonus incremental threshold
     * @param num Threshold
@@ -452,11 +452,11 @@ contract Nest_3_TokenAbonus {
     function changeExpectedSpanForNToken(uint256 num) public onlyOwner {
         _expectedSpanForNToken = num;
     }
-    
+
     receive() external payable {
-        
+
     }
-    
+
     // Administrator only
     modifier onlyOwner(){
         require(_voteFactory.checkOwners(address(msg.sender)), "No authority");

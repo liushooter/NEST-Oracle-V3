@@ -3,40 +3,56 @@
 ### Description
 > The oracle price data is stored in the pricing contract. The pricing contract provides relating interfaces and implemented the charging logic. The address of pricing contract should be queried from voting contract.
 
+Oracle价格数据存储在pricing合约中。pricing合约提供相关接口，实现收费逻辑。pricing合约的地址从voting合约中查询。
+
 ### Note
 1. `receive` method must be implemented in the contract for receiving the returned ETH.
 
-```
+```js
 receive() external payable
 ```
 
 2. when calling pricing contract, the address must be obtained via NEST vote contract, in case of ineffectiveness after the address of pricing contract changes.
 
-```
+调用pricing合约时，必须通过NESTvote合约获取地址，以防pricing合约地址变更后无效。
+
+```js
 Nest_3_OfferPrice _offerPrice = Nest_3_OfferPrice(address(_voteFactory.checkAddress("nest.v3.offerPrice")));
 ```
 3. The charging standard for the creation of each ERC20 oracle is the same, but may be modified by voting contract. When calling prices, charging standard may changes, to make sure the success callings , there are two methods.
 
-> Method1：When calling, pay a larger amount of ETH first, the pricing contract will charge the actual fee according to the rules, the excess ETH will be returned to the calling contract, and the receiving of returned ETH should be handled by the calling contract. The specific amount of ETH paid first can be determined according to the upper limit that you can accept. 
+每一个ERC20 oracle的创建收费标准是一样的，但可以通过voting合约进行修改。在调用价格时，收费标准可能会发生变化，为保证调用成功，有两种方法。
 
-> Method2：Before calling the price, check the corresponding  charging standard of ERC20 from the price contract, calculate the fee based on the charging rules, and then call the price.
+> Method1：When calling, pay a larger amount of ETH first, the pricing contract will charge the actual fee according to the rules, the excess ETH will be returned to the calling contract, and the receiving of returned ETH should be handled by the calling contract. The specific amount of ETH paid first can be determined according to the upper limit that you can accept.
 
-```
+在calling时，先支付较大金额的ETH，pricing合约将按规则收取实际费用，多支付的ETH将返还给calling合约，接收返还的ETH应由calling合约自行处理。具体先支付多少ETH，可以根据你能接受的上限来确定。
+
+> Method2：Before calling the price, check the corresponding charging standard of ERC20 from the price contract, calculate the fee based on the charging rules, and then call the price.
+
+出价前，先从 price 合约中查看ERC20对应的收费标准，根据收费规则计算出费用，再进行出价。
+
+```js
     // Check call price fee
     function checkPriceCost() public view returns (uint256) {
         return _priceCost;
     }
 ```
-4. Do not implement methods that can publicly check prices (to prevent proxy prices) within the contract. Any method of calling Nest oracle price data is only for internal use of the contract. If it includes a method of publicly checking the price, the contract will be voted by the community to be added to the price calling blacklist, and the contract will not be able to call the Nest oracle price. 
+4. Do not implement methods that can publicly check prices (to prevent proxy prices) within the contract. Any method of calling Nest oracle price data is only for internal use of the contract. If it includes a method of publicly checking the price, the contract will be voted by the community to be added to the price calling blacklist, and the contract will not be able to call the Nest oracle price.
+
+Note：**不要在合约内实现可以公开检查价格（防止代理价格）的方法。任何调用Nest oracle价格数据的方法都只能供合约内部使用。如果包含公开检查价格的方法，该合约将被社区投票加入价格调用黑名单，该合约将无法调用Nest oracle价格。**
 
 5. Make sure the erc20 oracle is created and operated normally.
 
-### Price generation instruction
+### Price generation instruction 价格生成指令
 #### Pricing block, validation block, effective price block
 
 Pricing block number is 1，validation block number is between 2 and 26 (taker order available). When the number exceed 26, the pricing assets can be retrieved and the effective price block is 26. After the 26th block, the effective price in 26th will always be returned.
+
+当数量超过26时，可以检索定价资产，有效价格区块为26。在第26个区块之后，总是返回第26个区块的有效价格。
+
 #### Price calculation with multiple offers in a block
-The first offer：10ETH， 2000USDT 
+
+The first offer：10ETH， 2000USDT
 
 The second offer：100ETH，3000USDT
 
@@ -48,7 +64,7 @@ The calculation of effective price (weighted average)：(10ETH + 100ETH) / (2000
 
 The authorization should be activated before calling prices
 
-##### Activation Instruction
+##### Activation Instruction 激活指令
 There are two preconditions for using Nest oracle prices
 1. 10000 Nest destructed in activation
 2. wait for 1 day
@@ -56,66 +72,68 @@ There are two preconditions for using Nest oracle prices
 Nest is required before activation in the third-party contract, but it does not necessarily transfer first, activation can be combined into one transaction。
 
 
-```
+```js
 function activation() public
 ```
 
 
 #### Calling a single price
-input parameter | description 
----|---
-tokenAddress | the erc20 address for checking 
 
-output parameter | description 
+input parameter | description
 ---|---
-ethAmount | eth amount（total eth amount of offering） 
-erc20Amount | erc20 amount（total erc20 amount of offering） 
-blockNum | effective block number 
+tokenAddress | the erc20 address for checking
 
-```
+output parameter | description
+---|---
+ethAmount | eth amount（total eth amount of offering）
+erc20Amount | erc20 amount（total erc20 amount of offering）
+blockNum | effective block number
+
+```js
 function updateAndCheckPriceNow(address tokenAddress) public payable returns(uint256 ethAmount, uint256 erc20Amount, uint256 blockNum)
 ```
 
 #### Checking history price
-input parameter | description 
+input parameter | description
 ---|---
-tokenAddress | the erc20 address for checking 
-num | the amount of prices 
+tokenAddress | the erc20 address for checking
+num | the amount of prices
 
-output parameter | description 
+output parameter | description
 ---|---
-uint256[] memory | price array 
+uint256[] memory | price array
 
 The length of returned array is 3 * num，a price data consist of 3 numbers, respectively the eth amount, the erc20 amount and the effective block number.
 
-```
+```js
 function updateAndCheckPriceList(address tokenAddress, uint256 num) public payable returns (uint256[] memory)
 ```
 
 #### Checking the fee(ETH) for obtaining a price
 
-output parameter | description 
+output parameter | description
 ---|---
---- | the eth fee for obtaining a price 
+--- | the eth fee for obtaining a price
 
-```
+```js
 function checkPriceCost() public view returns (uint256)
 ```
 
 ### Demo
-```
+
+```js
 pragma solidity 0.6.0;
 
 contract Nest_3_GetPrice {
     using SafeMath for uint256;
     using SafeERC20 for ERC20;
-    
+
     // Voting contract
     Nest_3_VoteFactory _voteFactory;
-    
+
     event price(uint256 ethAmount, uint256 tokenAmount, uint256 blockNum, uint256 ethMultiple, uint256 tokenForEth);
     event averagePrice(uint256 price);
-    
+
     /**
      * @dev Initialization method
      * @param voteFactory Voting contract
@@ -123,7 +141,7 @@ contract Nest_3_GetPrice {
     constructor (address voteFactory) public {
         _voteFactory = Nest_3_VoteFactory(address(voteFactory));
     }
-    
+
     /**
      * @dev Get a single price
      * @param token Token address of the price
@@ -137,10 +155,10 @@ contract Nest_3_GetPrice {
         uint256 tokenForEth = tokenAmount.div(ethMultiple);
         // If the eth paid for the price is left, it needs to be processed.
         // ........
-        
+
         emit price(ethAmount, tokenAmount, blockNum, ethMultiple, tokenForEth);
     }
-    
+
     /**
      * @dev Get multiple prices
      * @param token The token address of the price
@@ -167,11 +185,11 @@ contract Nest_3_GetPrice {
         uint256 calculationPrice = allTokenForEth.div(priceDataNum);
         // If the eth paid for the price is left, it needs to be processed.
         // ........
-        
-        
+
+
         emit averagePrice(calculationPrice);
     }
-    
+
     /**
      * @dev Activate the price checking function
      * @param nestAddress NestToken address
@@ -185,12 +203,12 @@ contract Nest_3_GetPrice {
         // Activation
         _offerPrice.activation();
     }
-    
+
     // Receive eth method, must be implemented.
     receive() external payable {
-        
+
     }
-    
+
 }
 
 // Voting contract
@@ -205,7 +223,7 @@ interface Nest_3_OfferPrice {
     * @dev Activate the price checking function
     */
     function activation() external;
-    
+
     /**
     * @dev Update and check the latest price
     * @param tokenAddress Token address

@@ -5,14 +5,14 @@ import "../Lib/AddressPayable.sol";
 import "../Lib/SafeERC20.sol";
 
 /**
- * @title Auction NToken contract 
- * @dev Auction for listing and generating NToken
+ * @title Auction NToken contract NToken拍卖
+ * @dev Auction for listing and generating NToken 拍卖上市和生成NToken
  */
-contract Nest_NToken_TokenAuction {
+contract Nest_NToken_TokenAuction { // 拍卖
     using SafeMath for uint256;
     using address_make_payable for address;
     using SafeERC20 for ERC20;
-    
+
     Nest_3_VoteFactory _voteFactory;                            //  Voting contract
     Nest_NToken_TokenMapping _tokenMapping;                     //  NToken mapping contract
     ERC20 _nestToken;                                           //  NestToken
@@ -26,13 +26,13 @@ contract Nest_NToken_TokenAuction {
     mapping(address => AuctionInfo) _auctionList;               //  Auction list
     mapping(address => bool) _tokenBlackList;                   //  Auction blacklist
     struct AuctionInfo {
-        uint256 endTime;                                        //  End time 
+        uint256 endTime;                                        //  End time
         uint256 auctionValue;                                   //  Auction price
         address latestAddress;                                  //  Highest auctioneer
-        uint256 latestAmount;                                   //  Lastest auction amount 
+        uint256 latestAmount;                                   //  Lastest auction amount
     }
     address[] _allAuction;                                      //  Auction list array
-    
+
     /**
     * @dev Initialization method
     * @param voteFactory Voting contract address
@@ -45,7 +45,7 @@ contract Nest_NToken_TokenAuction {
         _destructionAddress = address(voteFactoryMap.checkAddress("nest.v3.destruction"));
         _offerPrice = Nest_3_OfferPrice(address(voteFactoryMap.checkAddress("nest.v3.offerPrice")));
     }
-    
+
     /**
     * @dev Reset voting contract
     * @param voteFactory Voting contract address
@@ -58,7 +58,7 @@ contract Nest_NToken_TokenAuction {
         _destructionAddress = address(voteFactoryMap.checkAddress("nest.v3.destruction"));
         _offerPrice = Nest_3_OfferPrice(address(voteFactoryMap.checkAddress("nest.v3.offerPrice")));
     }
-    
+
     /**
     * @dev Initiating auction
     * @param token Auction token address
@@ -79,10 +79,10 @@ contract Nest_NToken_TokenAuction {
         _auctionList[token] = thisAuction;
         _allAuction.push(token);
     }
-    
+
     /**
     * @dev Auction
-    * @param token Auction token address 
+    * @param token Auction token address
     * @param auctionAmount Auction amount
     */
     function continueAuction(address token, uint256 auctionAmount) public {
@@ -98,7 +98,7 @@ contract Nest_NToken_TokenAuction {
         _auctionList[token].latestAddress = address(msg.sender);
         _auctionList[token].latestAmount = _auctionList[token].latestAmount.add(subAuctionAmount.sub(excitation));
     }
-    
+
     /**
     * @dev Listing
     * @param token Auction token address
@@ -121,7 +121,7 @@ contract Nest_NToken_TokenAuction {
         _offerPrice.addPriceCost(token);
         _tokenNum = _tokenNum.add(1);
     }
-    
+
     function strConcat(string memory _a, string memory _b) public pure returns (string memory){
         bytes memory _ba = bytes(_a);
         bytes memory _bb = bytes(_b);
@@ -130,13 +130,13 @@ contract Nest_NToken_TokenAuction {
         uint k = 0;
         for (uint i = 0; i < _ba.length; i++) {
             bret[k++] = _ba[i];
-        } 
+        }
         for (uint i = 0; i < _bb.length; i++) {
             bret[k++] = _bb[i];
-        } 
+        }
         return string(ret);
-    } 
-    
+    }
+
     // Convert to 4-digit string
     function getAddressStr(uint256 iv) public pure returns (string memory) {
         bytes memory buf = new bytes(64);
@@ -151,87 +151,87 @@ contract Nest_NToken_TokenAuction {
         }
         return string(str);
     }
-    
+
     // Check auction duration
     function checkDuration() public view returns(uint256) {
         return _duration;
     }
-    
+
     // Check minimum auction amount
     function checkMinimumNest() public view returns(uint256) {
         return _minimumNest;
     }
-    
+
     // Check initiated number of auction tokens
     function checkAllAuctionLength() public view returns(uint256) {
         return _allAuction.length;
     }
-    
+
     // View auctioned token addresses
     function checkAuctionTokenAddress(uint256 num) public view returns(address) {
         return _allAuction[num];
     }
-    
+
     // View auction blacklist
     function checkTokenBlackList(address token) public view returns(bool) {
         return _tokenBlackList[token];
     }
-    
+
     // View auction token information
     function checkAuctionInfo(address token) public view returns(uint256 endTime, uint256 auctionValue, address latestAddress) {
         AuctionInfo memory info = _auctionList[token];
         return (info.endTime, info.auctionValue, info.latestAddress);
     }
-    
+
     // View token number
     function checkTokenNum() public view returns (uint256) {
         return _tokenNum;
     }
-    
+
     // Modify auction duration
     function changeDuration(uint256 num) public onlyOwner {
         _duration = num.mul(1 days);
     }
-    
+
     // Modify minimum auction amount
     function changeMinimumNest(uint256 num) public onlyOwner {
         _minimumNest = num;
     }
-    
+
     // Modify auction blacklist
     function changeTokenBlackList(address token, bool isBlack) public onlyOwner {
         _tokenBlackList[token] = isBlack;
     }
-    
+
     // Administrator only
     modifier onlyOwner(){
         require(_voteFactory.checkOwners(msg.sender), "No authority");
         _;
     }
-    
+
 }
 
 // Bonus logic contract
 interface Nest_3_TokenAbonus {
-    // View next bonus time 
+    // View next bonus time
     function getNextTime() external view returns (uint256);
-    // View bonus period 
+    // View bonus period
     function checkTimeLimit() external view returns (uint256);
     // View duration of triggering calculation of bonus
     function checkGetAbonusTimeLimit() external view returns (uint256);
 }
 
-//  voting contract 
+//  voting contract
 interface Nest_3_VoteFactory {
-    //  Check address 
+    //  Check address
     function checkAddress(string calldata name) external view returns (address contractAddress);
-    //  check whether the administrator 
+    //  check whether the administrator
     function checkOwners(address man) external view returns (bool);
 }
 
 /**
- * @title NToken contract 
- * @dev Include standard erc20 method, mining method, and mining data 
+ * @title NToken contract
+ * @dev Include standard erc20 method, mining method, and mining data
  */
 interface IERC20 {
     function totalSupply() external view returns (uint256);
@@ -246,34 +246,34 @@ interface IERC20 {
 
 contract Nest_NToken is IERC20 {
     using SafeMath for uint256;
-    
-    mapping (address => uint256) private _balances;                                 //  Balance ledger 
-    mapping (address => mapping (address => uint256)) private _allowed;             //  Approval ledger 
-    uint256 private _totalSupply = 0 ether;                                         //  Total supply 
-    string public name;                                                             //  Token name 
-    string public symbol;                                                           //  Token symbol 
+
+    mapping (address => uint256) private _balances;                                 //  Balance ledger
+    mapping (address => mapping (address => uint256)) private _allowed;             //  Approval ledger
+    uint256 private _totalSupply = 0 ether;                                         //  Total supply
+    string public name;                                                             //  Token name
+    string public symbol;                                                           //  Token symbol
     uint8 public decimals = 18;                                                     //  Precision
     uint256 public _createBlock;                                                    //  Create block number
     uint256 public _recentlyUsedBlock;                                              //  Recently used block number
     Nest_3_VoteFactory _voteFactory;                                                //  Voting factory contract
     address _bidder;                                                                //  Owner
-    
+
     /**
     * @dev Initialization method
     * @param _name Token name
     * @param _symbol Token symbol
     * @param voteFactory Voting factory contract address
-    * @param bidder Successful bidder address
+    * @param bidder Successful bidder address 投标人
     */
     constructor (string memory _name, string memory _symbol, address voteFactory, address bidder) public {
-        name = _name;                                                               
+        name = _name;
         symbol = _symbol;
         _createBlock = block.number;
         _recentlyUsedBlock = block.number;
         _voteFactory = Nest_3_VoteFactory(address(voteFactory));
         _bidder = bidder;
     }
-    
+
     /**
     * @dev Reset voting contract method
     * @param voteFactory Voting contract address
@@ -281,7 +281,7 @@ contract Nest_NToken is IERC20 {
     function changeMapping (address voteFactory) public onlyOwner {
         _voteFactory = Nest_3_VoteFactory(address(voteFactory));
     }
-    
+
     /**
     * @dev Additional issuance
     * @param value Additional issuance amount
@@ -310,7 +310,7 @@ contract Nest_NToken is IERC20 {
     function balanceOf(address owner) override public view returns (uint256) {
         return _balances[owner];
     }
-    
+
     /**
     * @dev Check block information
     * @return createBlock Initial block number
@@ -407,7 +407,7 @@ contract Nest_NToken is IERC20 {
         _balances[to] = _balances[to].add(value);
         emit Transfer(from, to, value);
     }
-    
+
     /**
     * @dev Check the creator
     * @return Creator address
@@ -415,16 +415,16 @@ contract Nest_NToken is IERC20 {
     function checkBidder() public view returns(address) {
         return _bidder;
     }
-    
+
     /**
     * @dev Transfer creator
     * @param bidder New creator address
     */
     function changeBidder(address bidder) public {
         require(address(msg.sender) == _bidder);
-        _bidder = bidder; 
+        _bidder = bidder;
     }
-    
+
     // Administrator only
     modifier onlyOwner(){
         require(_voteFactory.checkOwners(msg.sender));

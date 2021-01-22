@@ -9,29 +9,29 @@ import "../Lib/SafeERC20.sol";
  * @dev Offering logic and mining logic
  */
 contract Nest_NToken_OfferMain {
-    
+
     using SafeMath for uint256;
     using address_make_payable for address;
     using SafeERC20 for ERC20;
-    
+
     // Offering data structure
     struct Nest_NToken_OfferPriceData {
         // The unique identifier is determined by the position of the offer in the array, and is converted to each other through a fixed algorithm (toindex(), toaddress())
         address owner;                                  //  Offering owner
-        bool deviate;                                   //  Whether it deviates 
+        bool deviate;                                   //  Whether it deviates
         address tokenAddress;                           //  The erc20 contract address of the target offer token
-        
+
         uint256 ethAmount;                              //  The ETH amount in the offer list
         uint256 tokenAmount;                            //  The token amount in the offer list
-        
+
         uint256 dealEthAmount;                          //  The remaining number of tradable ETH
         uint256 dealTokenAmount;                        //  The remaining number of tradable tokens
-        
+
         uint256 blockNum;                               //  The block number where the offer is located
         uint256 serviceCharge;                          //  The fee for mining
         // Determine whether the asset has been collected by judging that ethamount, tokenamount, and servicecharge are all 0
     }
-    
+
     Nest_NToken_OfferPriceData [] _prices;                              //  Array used to save offers
     Nest_3_VoteFactory _voteFactory;                                    //  Voting contract
     Nest_3_OfferPrice _offerPrice;                                      //  Price contract
@@ -48,55 +48,55 @@ contract Nest_NToken_OfferMain {
     uint256 _ownerMining = 5;                                           //  Creator ratio
     uint256 _afterMiningAmount = 0.4 ether;                             //  Stable period mining amount
     uint32 _blockLimit = 25;                                            //  Block interval upper limit
-    
+
     uint256 _blockAttenuation = 2400000;                                //  Block decay interval
     mapping(uint256 => mapping(address => uint256)) _blockOfferAmount;  //  Block offer times - block number=>token address=>offer fee
     mapping(uint256 => mapping(address => uint256)) _blockMining;       //  Offering block mining amount - block number=>token address=>mining amount
     uint256[10] _attenuationAmount;                                     //  Mining decay list
-    
+
     //  Log token contract address
-    event OfferTokenContractAddress(address contractAddress);           
+    event OfferTokenContractAddress(address contractAddress);
     //  Log offering contract, token address, amount of ETH, amount of ERC20, delayed block, mining fee
-    event OfferContractAddress(address contractAddress, address tokenAddress, uint256 ethAmount, uint256 erc20Amount, uint256 continued,uint256 mining);         
+    event OfferContractAddress(address contractAddress, address tokenAddress, uint256 ethAmount, uint256 erc20Amount, uint256 continued,uint256 mining);
     //  Log transaction sender, transaction token, transaction amount, purchase token address, purchase token amount, transaction offering contract address, transaction user address
-    event OfferTran(address tranSender, address tranToken, uint256 tranAmount,address otherToken, uint256 otherAmount, address tradedContract, address tradedOwner);        
+    event OfferTran(address tranSender, address tranToken, uint256 tranAmount,address otherToken, uint256 otherAmount, address tradedContract, address tradedOwner);
     //  Log current block, current block mined amount, token address
     event OreDrawingLog(uint256 nowBlock, uint256 blockAmount, address tokenAddress);
     //  Log offering block, token address, token offered times
     event MiningLog(uint256 blockNum, address tokenAddress, uint256 offerTimes);
-    
+
     /**
      * Initialization method
      * @param voteFactory Voting contract address
      **/
     constructor (address voteFactory) public {
         Nest_3_VoteFactory voteFactoryMap = Nest_3_VoteFactory(address(voteFactory));
-        _voteFactory = voteFactoryMap;                                                                 
-        _offerPrice = Nest_3_OfferPrice(address(voteFactoryMap.checkAddress("nest.v3.offerPrice")));            
-        _nestToken = ERC20(voteFactoryMap.checkAddress("nest"));                                                          
+        _voteFactory = voteFactoryMap;
+        _offerPrice = Nest_3_OfferPrice(address(voteFactoryMap.checkAddress("nest.v3.offerPrice")));
+        _nestToken = ERC20(voteFactoryMap.checkAddress("nest"));
         _abonus = Nest_3_Abonus(voteFactoryMap.checkAddress("nest.v3.abonus"));
         _tokenMapping = Nest_NToken_TokenMapping(address(voteFactoryMap.checkAddress("nest.nToken.tokenMapping")));
-        
+
         uint256 blockAmount = 4 ether;
         for (uint256 i = 0; i < 10; i ++) {
             _attenuationAmount[i] = blockAmount;
             blockAmount = blockAmount.mul(8).div(10);
         }
     }
-    
+
     /**
      * Reset voting contract method
      * @param voteFactory Voting contract address
      **/
     function changeMapping(address voteFactory) public onlyOwner {
         Nest_3_VoteFactory voteFactoryMap = Nest_3_VoteFactory(address(voteFactory));
-        _voteFactory = voteFactoryMap;                                                          
-        _offerPrice = Nest_3_OfferPrice(address(voteFactoryMap.checkAddress("nest.v3.offerPrice")));      
-        _nestToken = ERC20(voteFactoryMap.checkAddress("nest"));                                                   
+        _voteFactory = voteFactoryMap;
+        _offerPrice = Nest_3_OfferPrice(address(voteFactoryMap.checkAddress("nest.v3.offerPrice")));
+        _nestToken = ERC20(voteFactoryMap.checkAddress("nest"));
         _abonus = Nest_3_Abonus(voteFactoryMap.checkAddress("nest.v3.abonus"));
         _tokenMapping = Nest_NToken_TokenMapping(address(voteFactoryMap.checkAddress("nest.nToken.tokenMapping")));
     }
-    
+
     /**
      * Offering method
      * @param ethAmount ETH amount
@@ -135,7 +135,7 @@ contract Nest_NToken_OfferMain {
         }
         _blockOfferAmount[block.number][erc20Address] = _blockOfferAmount[block.number][erc20Address].add(ethMining);
     }
-    
+
     /**
      * @dev Create offer
      * @param ethAmount Offering ETH amount
@@ -144,7 +144,7 @@ contract Nest_NToken_OfferMain {
      **/
     function createOffer(uint256 ethAmount, uint256 erc20Amount, address erc20Address, bool isDeviate, uint256 mining) private {
         // Check offer conditions
-        require(ethAmount >= _leastEth, "Eth scale is smaller than the minimum scale");                                                 
+        require(ethAmount >= _leastEth, "Eth scale is smaller than the minimum scale");
         require(ethAmount % _offerSpan == 0, "Non compliant asset span");
         require(erc20Amount % (ethAmount.div(_offerSpan)) == 0, "Asset quantity is not divided");
         require(erc20Amount > 0);
@@ -154,30 +154,30 @@ contract Nest_NToken_OfferMain {
             msg.sender,
             isDeviate,
             erc20Address,
-            
+
             ethAmount,
             erc20Amount,
-            
-            ethAmount, 
-            erc20Amount, 
-            
+
+            ethAmount,
+            erc20Amount,
+
             block.number,
             mining
         ));
         // Record price
         _offerPrice.addPrice(ethAmount, erc20Amount, block.number.add(_blockLimit), erc20Address, address(msg.sender));
     }
-    
+
     // Convert offer address into index in offer array
     function toIndex(address contractAddress) public pure returns(uint256) {
         return uint256(contractAddress);
     }
-    
-    // Convert index in offer array into offer address 
+
+    // Convert index in offer array into offer address
     function toAddress(uint256 index) public pure returns(address) {
         return address(index);
     }
-    
+
     /**
      * Withdraw offer assets
      * @param contractAddress Offer address
@@ -198,7 +198,7 @@ contract Nest_NToken_OfferMain {
             uint256 payErc = offerPriceData.tokenAmount;
             offerPriceData.tokenAmount = 0;
             ERC20(address(offerPriceData.tokenAddress)).safeTransfer(address(offerPriceData.owner), payErc);
-            
+
         }
         // Mining settlement
         if (offerPriceData.serviceCharge > 0) {
@@ -206,7 +206,7 @@ contract Nest_NToken_OfferMain {
             offerPriceData.serviceCharge = 0;
         }
     }
-    
+
     /**
     * @dev Taker order - pay ETH and buy erc20
     * @param ethAmount The amount of ETH of this offer
@@ -221,10 +221,10 @@ contract Nest_NToken_OfferMain {
         uint256 serviceCharge = tranEthAmount.mul(_tranEth).div(1000);
         require(msg.value == ethAmount.add(tranEthAmount).add(serviceCharge), "msg.value needs to be equal to the quotation eth quantity plus transaction eth plus");
         require(tranEthAmount % _offerSpan == 0, "Transaction size does not meet asset span");
-        
+
         //  Get the offer data structure
         uint256 index = toIndex(contractAddress);
-        Nest_NToken_OfferPriceData memory offerPriceData = _prices[index]; 
+        Nest_NToken_OfferPriceData memory offerPriceData = _prices[index];
         //  Check the price, compare the current offer to the last effective price
         bool thisDeviate = comparativePrice(ethAmount,tokenAmount,tranTokenAddress);
         bool isDeviate;
@@ -246,14 +246,14 @@ contract Nest_NToken_OfferMain {
                 require(ethAmount >= tranEthAmount.mul(_tranAddition), "EthAmount needs to be no less than 2 times of transaction scale");
             }
         }
-        
+
         // Check whether the conditions for taker order are satisfied
         require(checkContractState(offerPriceData.blockNum) == 0, "Offer status error");
         require(offerPriceData.dealEthAmount >= tranEthAmount, "Insufficient trading eth");
         require(offerPriceData.dealTokenAmount >= tranTokenAmount, "Insufficient trading token");
         require(offerPriceData.tokenAddress == tranTokenAddress, "Wrong token address");
         require(tranTokenAmount == offerPriceData.dealTokenAmount * tranEthAmount / offerPriceData.dealEthAmount, "Wrong token amount");
-        
+
         // Update the offer information
         offerPriceData.ethAmount = offerPriceData.ethAmount.add(tranEthAmount);
         offerPriceData.tokenAmount = offerPriceData.tokenAmount.sub(tranTokenAmount);
@@ -272,14 +272,14 @@ contract Nest_NToken_OfferMain {
         // Modify price
         _offerPrice.changePrice(tranEthAmount, tranTokenAmount, tranTokenAddress, offerPriceData.blockNum.add(_blockLimit));
         emit OfferTran(address(msg.sender), address(0x0), tranEthAmount, address(tranTokenAddress), tranTokenAmount, contractAddress, offerPriceData.owner);
-        
+
         // Transfer fee
         if (serviceCharge > 0) {
             address nTokenAddress = _tokenMapping.checkTokenMapping(tranTokenAddress);
             _abonus.switchToEth.value(serviceCharge)(nTokenAddress);
         }
     }
-    
+
     /**
     * @dev Taker order - pay erc20 and buy ETH
     * @param ethAmount The amount of ETH of this offer
@@ -296,7 +296,7 @@ contract Nest_NToken_OfferMain {
         require(tranEthAmount % _offerSpan == 0, "Transaction size does not meet asset span");
         //  Get the offer data structure
         uint256 index = toIndex(contractAddress);
-        Nest_NToken_OfferPriceData memory offerPriceData = _prices[index]; 
+        Nest_NToken_OfferPriceData memory offerPriceData = _prices[index];
         //  Check the price, compare the current offer to the last effective price
         bool thisDeviate = comparativePrice(ethAmount,tokenAmount,tranTokenAddress);
         bool isDeviate;
@@ -343,7 +343,7 @@ contract Nest_NToken_OfferMain {
             _abonus.switchToEth.value(serviceCharge)(nTokenAddress);
         }
     }
-    
+
     /**
      * Offering mining
      * @param ntoken NToken address
@@ -364,23 +364,23 @@ contract Nest_NToken_OfferMain {
         emit OreDrawingLog(block.number, miningAmount, ntoken);
         return miningAmount;
     }
-    
+
     /**
      * Retrieve mining
      * @param token Token address
      **/
     function mining(uint256 blockNum, address token, uint256 serviceCharge, address owner) private returns(uint256) {
         //  Block mining amount*offer fee/block offer fee
-        uint256 miningAmount = _blockMining[blockNum][token].mul(serviceCharge).div(_blockOfferAmount[blockNum][token]);        
-        //  Transfer NToken 
+        uint256 miningAmount = _blockMining[blockNum][token].mul(serviceCharge).div(_blockOfferAmount[blockNum][token]);
+        //  Transfer NToken
         Nest_NToken nToken = Nest_NToken(address(_tokenMapping.checkTokenMapping(token)));
         require(nToken.transfer(address(owner), miningAmount), "Transfer failure");
-        
+
         emit MiningLog(blockNum, token,_blockOfferAmount[blockNum][token]);
         return miningAmount;
     }
-    
-    // Compare order prices
+
+    // Compare order prices  比较价格
     function comparativePrice(uint256 myEthValue, uint256 myTokenValue, address token) private view returns(bool) {
         (uint256 frontEthValue, uint256 frontTokenValue) = _offerPrice.updateAndCheckPricePrivate(token);
         if (frontEthValue == 0 || frontTokenValue == 0) {
@@ -395,7 +395,7 @@ contract Nest_NToken_OfferMain {
         }
         return true;
     }
-    
+
     // Check contract status
     function checkContractState(uint256 createBlock) public view returns (uint256) {
         if (block.number.sub(createBlock) > _blockLimit) {
@@ -403,33 +403,33 @@ contract Nest_NToken_OfferMain {
         }
         return 0;
     }
-    
+
     // Transfer ETH
     function repayEth(address accountAddress, uint256 asset) private {
         address payable addr = accountAddress.make_payable();
         addr.transfer(asset);
     }
-    
+
     // View the upper limit of the block interval
     function checkBlockLimit() public view returns(uint256) {
         return _blockLimit;
     }
-    
+
     // View taker fee ratio
     function checkTranEth() public view returns (uint256) {
         return _tranEth;
     }
-    
+
     // View additional transaction multiple
     function checkTranAddition() public view returns(uint256) {
         return _tranAddition;
     }
-    
+
     // View minimum offering ETH
     function checkleastEth() public view returns(uint256) {
         return _leastEth;
     }
-    
+
     // View offering ETH span
     function checkOfferSpan() public view returns(uint256) {
         return _offerSpan;
@@ -439,12 +439,12 @@ contract Nest_NToken_OfferMain {
     function checkBlockOfferAmount(uint256 blockNum, address token) public view returns (uint256) {
         return _blockOfferAmount[blockNum][token];
     }
-    
+
     // View offering block mining amount
     function checkBlockMining(uint256 blockNum, address token) public view returns (uint256) {
         return _blockMining[blockNum][token];
     }
-    
+
     // View offering mining amount
     function checkOfferMining(uint256 blockNum, address token, uint256 serviceCharge) public view returns (uint256) {
         if (serviceCharge == 0) {
@@ -453,60 +453,60 @@ contract Nest_NToken_OfferMain {
             return _blockMining[blockNum][token].mul(serviceCharge).div(_blockOfferAmount[blockNum][token]);
         }
     }
-    
+
     //  View the owner allocation ratio
     function checkOwnerMining() public view returns(uint256) {
         return _ownerMining;
     }
-    
+
     // View the mining decay
     function checkAttenuationAmount(uint256 num) public view returns(uint256) {
         return _attenuationAmount[num];
     }
-    
+
     // Modify taker order fee ratio
     function changeTranEth(uint256 num) public onlyOwner {
         _tranEth = num;
     }
-    
+
     // Modify block interval upper limit
     function changeBlockLimit(uint32 num) public onlyOwner {
         _blockLimit = num;
     }
-    
+
     // Modify additional transaction multiple
     function changeTranAddition(uint256 num) public onlyOwner {
         require(num > 0, "Parameter needs to be greater than 0");
         _tranAddition = num;
     }
-    
+
     // Modify minimum offering ETH
     function changeLeastEth(uint256 num) public onlyOwner {
         require(num > 0, "Parameter needs to be greater than 0");
         _leastEth = num;
     }
-    
+
     // Modify offering ETH span
     function changeOfferSpan(uint256 num) public onlyOwner {
         require(num > 0, "Parameter needs to be greater than 0");
         _offerSpan = num;
     }
-    
+
     // Modify price deviation
     function changekDeviate(uint256 num) public onlyOwner {
         _deviate = num;
     }
-    
-    // Modify the deviation from scale 
+
+    // Modify the deviation from scale
     function changeDeviationFromScale(uint256 num) public onlyOwner {
         _deviationFromScale = num;
     }
-    
+
     // Modify the owner allocation ratio
     function changeOwnerMining(uint256 num) public onlyOwner {
         _ownerMining = num;
     }
-    
+
     // Modify the mining decay
     function changeAttenuationAmount(uint256 firstAmount, uint256 top, uint256 bottom) public onlyOwner {
         uint256 blockAmount = firstAmount;
@@ -515,13 +515,13 @@ contract Nest_NToken_OfferMain {
             blockAmount = blockAmount.mul(top).div(bottom);
         }
     }
-    
+
     // Vote administrators only
     modifier onlyOwner(){
         require(_voteFactory.checkOwners(msg.sender), "No authority");
         _;
     }
-    
+
     /**
      * Get the number of offers stored in the offer array
      * @return The number of offers stored in the offer array
@@ -529,7 +529,7 @@ contract Nest_NToken_OfferMain {
     function getPriceCount() view public returns (uint256) {
         return _prices.length;
     }
-    
+
     /**
      * Get offer information according to the index
      * @param priceIndex Offer index
@@ -547,14 +547,14 @@ contract Nest_NToken_OfferMain {
         }
         return string(str);
     }
-    
+
     /**
      * Search the contract address list of the target account (reverse order)
      * @param start Search forward from the index corresponding to the given contract address (not including the record corresponding to start address)
      * @param count Maximum number of records to return
      * @param maxFindCount The max index to search
      * @param owner Target account address
-     * @return Separate the offer records with symbols. use , to divide fields:  
+     * @return Separate the offer records with symbols. use , to divide fields:
      * uuid,owner,tokenAddress,ethAmount,tokenAmount,dealEthAmount,dealTokenAmount,blockNum,serviceCharge
      **/
     function find(address start, uint256 count, uint256 maxFindCount, address owner) view public returns (string memory) {
@@ -585,35 +585,35 @@ contract Nest_NToken_OfferMain {
         }
         return string(str);
     }
-    
+
     /**
      * Get the list of offers by page
      * @param offset Skip the first offset records
      * @param count Maximum number of records to return
      * @param order Sort rules. 0 means reverse order, non-zero means positive order
-     * @return Separate the offer records with symbols. use , to divide fields: 
+     * @return Separate the offer records with symbols. use , to divide fields:
      * uuid,owner,tokenAddress,ethAmount,tokenAmount,dealEthAmount,dealTokenAmount,blockNum,serviceCharge
      **/
     function list(uint256 offset, uint256 count, uint256 order) view public returns (string memory) {
-        
-        // Buffer array used to generate result string 
+
+        // Buffer array used to generate result string
         bytes memory buf = new bytes(500000);
         uint256 index = 0;
-        
+
         // Find search interval i and end
         uint256 i = 0;
         uint256 end = 0;
-        
+
         if (order == 0) {
-            // Reverse order, in default 
+            // Reverse order, in default
             // Calculate search interval i and end
             if (offset < _prices.length) {
                 i = _prices.length - offset;
-            } 
+            }
             if (count < i) {
                 end = i - count;
             }
-            
+
             // Write records in the target interval into the buffer
             while (i-- > end) {
                 index = writeOfferPriceData(i, _prices[i], buf, index);
@@ -630,55 +630,55 @@ contract Nest_NToken_OfferMain {
             if(end > _prices.length) {
                 end = _prices.length;
             }
-            
+
             // Write the records in the target interval into the buffer
             while (i < end) {
                 index = writeOfferPriceData(i, _prices[i], buf, index);
                 ++i;
             }
         }
-        
+
         // Generate the result string and return
         bytes memory str = new bytes(index);
         while(index-- > 0) {
             str[index] = buf[index];
         }
         return string(str);
-    }   
-     
+    }
+
     // Write the offer data into the buffer and return the buffer index
     function writeOfferPriceData(uint256 priceIndex, Nest_NToken_OfferPriceData memory price, bytes memory buf, uint256 index) pure private returns (uint256) {
-        
+
         index = writeAddress(toAddress(priceIndex), buf, index);
         buf[index++] = byte(uint8(44));
-        
+
         index = writeAddress(price.owner, buf, index);
         buf[index++] = byte(uint8(44));
-        
+
         index = writeAddress(price.tokenAddress, buf, index);
         buf[index++] = byte(uint8(44));
-        
+
         index = writeUInt(price.ethAmount, buf, index);
         buf[index++] = byte(uint8(44));
-        
+
         index = writeUInt(price.tokenAmount, buf, index);
         buf[index++] = byte(uint8(44));
-       
+
         index = writeUInt(price.dealEthAmount, buf, index);
         buf[index++] = byte(uint8(44));
-        
+
         index = writeUInt(price.dealTokenAmount, buf, index);
         buf[index++] = byte(uint8(44));
-        
+
         index = writeUInt(price.blockNum, buf, index);
         buf[index++] = byte(uint8(44));
-        
+
         index = writeUInt(price.serviceCharge, buf, index);
         buf[index++] = byte(uint8(44));
-        
+
         return index;
     }
-     
+
     // Convert integer to string in decimal form, write the string into the buffer, and return the buffer index
     function writeUInt(uint256 iv, bytes memory buf, uint256 index) pure public returns (uint256) {
         uint256 i = index;
@@ -686,19 +686,19 @@ contract Nest_NToken_OfferMain {
             buf[index++] = byte(uint8(iv % 10 +48));
             iv /= 10;
         } while (iv > 0);
-        
+
         for (uint256 j = index; j > i; ++i) {
             byte t = buf[i];
             buf[i] = buf[--j];
             buf[j] = t;
         }
-        
+
         return index;
     }
 
     // Convert the address to a hexadecimal string and write it into the buffer, and return the buffer index
     function writeAddress(address addr, bytes memory buf, uint256 index) pure private returns (uint256) {
-        
+
         uint256 iv = uint256(addr);
         uint256 i = index + 40;
         do {
@@ -708,17 +708,17 @@ contract Nest_NToken_OfferMain {
             } else {
                 buf[index++] = byte(uint8(w +87));
             }
-            
+
             iv /= 16;
         } while (index < i);
-        
+
         i -= 40;
         for (uint256 j = index; j > i; ++i) {
             byte t = buf[i];
             buf[i] = buf[--j];
             buf[j] = t;
         }
-        
+
         return index;
     }
 }

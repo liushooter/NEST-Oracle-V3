@@ -4,31 +4,31 @@ import "../Lib/SafeMath.sol";
 import "../Lib/AddressPayable.sol";
 
 /**
- * @title Leveling contract
- * @dev ETH transfer in and transfer out
+ * @title Leveling contract 平衡合约 专业术语？
+ * @dev ETH transfer in and transfer out ETH转入和转出
  */
 contract Nest_3_Leveling {
     using address_make_payable for address;
     using SafeMath for uint256;
     Nest_3_VoteFactory _voteFactory;                                //  Vote contract
     mapping (address => uint256) ethMapping;                        //  Corresponded ETH leveling ledger of token
-    
+
     /**
     * @dev Initialization method
     * @param voteFactory Voting contract address
     */
     constructor (address voteFactory) public {
-        _voteFactory = Nest_3_VoteFactory(voteFactory); 
+        _voteFactory = Nest_3_VoteFactory(voteFactory);
     }
-    
+
     /**
     * @dev Modifying voting contract
     * @param voteFactory Voting contract address
     */
     function changeMapping(address voteFactory) public onlyOwner {
-        _voteFactory = Nest_3_VoteFactory(voteFactory); 
+        _voteFactory = Nest_3_VoteFactory(voteFactory);
     }
-    
+
     /**
     * @dev Transfer out leveling
     * @param amount Transfer-out amount
@@ -46,26 +46,26 @@ contract Nest_3_Leveling {
         addr.transfer(tranAmount);
         return tranAmount;
     }
-    
+
     /**
-    * @dev Transfer in leveling 
+    * @dev Transfer in leveling
     * @param token Corresponded locked token
     */
     function switchToEth(address token) public payable {
         ethMapping[token] = ethMapping[token].add(msg.value);
     }
-    
+
     //  Check the leveled amount corresponding to the token
     function checkEthMapping(address token) public view returns (uint256) {
         return ethMapping[token];
     }
-    
+
     //  Withdraw ETH
     function turnOutAllEth(uint256 amount, address target) public onlyOwner {
         address payable addr = target.make_payable();
-        addr.transfer(amount);  
+        addr.transfer(amount);
     }
-    
+
     //  Administrator only
     modifier onlyOwner(){
         require(_voteFactory.checkOwners(address(msg.sender)), "No authority");
